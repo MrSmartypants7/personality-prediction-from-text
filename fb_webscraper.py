@@ -6,6 +6,7 @@ import yaml
 import time
 import random
 
+
 class FBWebScraper():
 
     def __init__(self, my_email, my_password, my_profile_url, statuses=50, scroll_time=7, browser='Chrome'):
@@ -24,7 +25,8 @@ class FBWebScraper():
 
         self.set_browser(browser)
 
-        person_dict = self.fb_statuses.find_one({'friends_dict': {'$exists': True}})
+        person_dict = self.fb_statuses.find_one(
+            {'friends_dict': {'$exists': True}})
         if person_dict == None:
             self.friends_dict = {}
         else:
@@ -34,14 +36,14 @@ class FBWebScraper():
     def set_browser(self, browser):
         # CHROME
         if browser == 'Chrome':
-            options = ChromeOptions();
-            options.add_argument("--disable-notifications");
+            options = ChromeOptions()
+            options.add_argument("--disable-notifications")
             self.browser = Chrome(options=options)
 
         # FIREFOX
         if browser == 'Firefox':
-            profile = FirefoxProfile();
-            profile.set_preference("dom.webnotifications.enabled", False);
+            profile = FirefoxProfile()
+            profile.set_preference("dom.webnotifications.enabled", False)
             self.browser = Firefox(firefox_profile=profile)
 
     # Opens facebook in the browser
@@ -56,34 +58,45 @@ class FBWebScraper():
         email.send_keys(self.my_email)
         password.send_keys(self.my_password)
 
-        self.browser.find_element_by_id("loginbutton").click()
+        self.browser.find_element_by_name("login").click()
 
     # Creates a dictionary of friends and their profile links, where key=profile_url and value=friends_name
     def create_friends_dict(self):
+        time.sleep(5)
         # Navigate to the friends tab in your profile
-        self.browser.find_element_by_css_selector(f'a[href="{self.my_profile_url}"]').click()
-        time.sleep(self.scroll_time)
-        self.browser.find_element_by_css_selector('a[data-tab-key="friends"]').click()
+        self.browser.find_element_by_css_selector(
+            f'a[href="/me/"]').click()
+        time.sleep(5)
         time.sleep(self.scroll_time)
 
         # Grab your number of friends from your profile
-        self.number_of_friends = int(self.browser.find_element_by_name('All Friends').find_elements_by_css_selector('span')[1].text)
+        number = self.browser.find_element_by_css_selector(
+            'a[href="https://www.facebook.com/{}/friends"]'.format(self.my_profile_url)).text
+        print("------------->> ", number[4:])
+        n = number[4:]
+        n_int = int(float(n))
+        print("n_int", n_int)
+        self.number_of_friends = n_int
+        print("number_friends>> ", self.number_of_friends)
 
         # Get scroll height
-        last_height = self.browser.execute_script("return document.body.scrollHeight")
+        last_height = self.browser.execute_script(
+            "return document.body.scrollHeight")
 
         # Loop to scroll through friends list while length of friends dictionary < number of friends
         while len(self.friends_dict.items()) < self.number_of_friends:
             SCROLL_PAUSE_TIME = self.scroll_time * (1 + random.random())
 
             # Scroll down to bottom
-            self.browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            self.browser.execute_script(
+                "window.scrollTo(0, document.body.scrollHeight);")
 
             # Wait to load page
             time.sleep(SCROLL_PAUSE_TIME)
 
             # Grab all friends
-            friend_items = self.browser.find_elements_by_css_selector('div[data-testid=friend_list_item]')
+            friend_items = self.browser.find_elements_by_css_selector(
+                'div[data-testid=friend_list_item]')
 
             # Iterate throguh friends list
             for friend_item in friend_items:
@@ -109,14 +122,18 @@ class FBWebScraper():
                     ):
                         # Add friend and profile url to dictionary
                         self.friends_dict[url] = profile.text
-                        print('Adding ' + profile.text + ' to friends dictionary...')
+                        print('Adding ' + profile.text +
+                              ' to friends dictionary...')
 
-            print('Creating friends dictionary... \nCurrent friend count: ' +  str(len(self.friends_dict.items())) + ' friends.')
+            print('Creating friends dictionary... \nCurrent friend count: ' +
+                  str(len(self.friends_dict.items())) + ' friends.')
 
             # Calculate new scroll height and compare with last scroll height
-            new_height = self.browser.execute_script("return document.body.scrollHeight")
+            new_height = self.browser.execute_script(
+                "return document.body.scrollHeight")
             if new_height == last_height:
-                print('Finished creating friends dictionary! \nTotal friends: ' + str(len(self.friends_dict.items())))
+                print('Finished creating friends dictionary! \nTotal friends: ' +
+                      str(len(self.friends_dict.items())))
                 break
             last_height = new_height
 
@@ -138,7 +155,6 @@ class FBWebScraper():
         #   'statuses': DICT = {key=time of status post, value=status},
         #   'html': STRING = html of page,}
 
-
         # Iterate through each friend in the friends dictionary
         for url, name in self.friends_dict.items():
             person_dict = self.fb_statuses.find_one({"url": url})
@@ -154,7 +170,8 @@ class FBWebScraper():
             time.sleep(self.scroll_time)
 
             # Get scroll height
-            last_height = self.browser.execute_script("return document.body.scrollHeight")
+            last_height = self.browser.execute_script(
+                "return document.body.scrollHeight")
 
             # Scroll through friends timeline and add statuses to dictionary
             while len(statuses_dict.items()) < self.number_of_statuses:
@@ -162,21 +179,25 @@ class FBWebScraper():
                 SCROLL_PAUSE_TIME = self.scroll_time * (1 + random.random())
 
                 # Scroll down to bottom
-                self.browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                self.browser.execute_script(
+                    "window.scrollTo(0, document.body.scrollHeight);")
 
                 # Wait to load page
                 time.sleep(SCROLL_PAUSE_TIME)
 
-                posts = self.browser.find_elements_by_css_selector('div[id*=tl_unit]')
+                posts = self.browser.find_elements_by_css_selector(
+                    'div[id*=tl_unit]')
 
                 for post in posts:
                     try:
-                        post_time_element = post.find_element_by_css_selector('abbr')
+                        post_time_element = post.find_element_by_css_selector(
+                            'abbr')
                         post_time = post_time_element.get_attribute('title')
                         post_context = post.find_element_by_css_selector('h5')
 
                         try:
-                            to_element = post_context.find_element_by_css_selector('i')
+                            to_element = post_context.find_element_by_css_selector(
+                                'i')
                             has_to_element = True
                         except:
                             has_to_element = False
@@ -187,10 +208,12 @@ class FBWebScraper():
                             'is with' not in post_context.text and
                             'was tagged' not in post_context.text and
                             'is in' not in post_context.text and
-                            not has_to_element):
+                                not has_to_element):
 
-                            user_content_element = post.find_element_by_css_selector('div[class*=userContent]')
-                            para_elements = user_content_element.find_elements_by_css_selector('p')
+                            user_content_element = post.find_element_by_css_selector(
+                                'div[class*=userContent]')
+                            para_elements = user_content_element.find_elements_by_css_selector(
+                                'p')
 
                             # Status sometimes split in two p elements. Merge two paragraphs
                             if len(para_elements) > 0:
@@ -198,18 +221,21 @@ class FBWebScraper():
                                 for para_element in para_elements:
                                     text += para_element.text + ' '
 
-                            print('Date: ' + post_time + '\n' + 'Status: ' + text + '\n')
+                            print('Date: ' + post_time + '\n' +
+                                  'Status: ' + text + '\n')
 
                             # Add status to dictionary
                             statuses_dict[post_time] = text
                     except:
                         print('Elements Not Found')
-                print("Scraping " + name + "'s statuses... \n" + 'Current status count: ' +  str(len(statuses_dict.items())) + ' statuses.')
+                print("Scraping " + name + "'s statuses... \n" +
+                      'Current status count: ' + str(len(statuses_dict.items())) + ' statuses.')
 
                 time.sleep(self.scroll_time)
 
                 # Calculate new scroll height and compare with last scroll height
-                new_height = self.browser.execute_script("return document.body.scrollHeight")
+                new_height = self.browser.execute_script(
+                    "return document.body.scrollHeight")
 
                 # Reached the end of friend's timeline, add name to already_scraped_dict
                 if new_height == last_height:
@@ -227,11 +253,13 @@ class FBWebScraper():
                     'datetime': datetime.datetime.now(),
                     'statuses': statuses_dict,
                     'html': html,
-                    }
+                }
                 },
-            upsert=True
+                upsert=True
             )
-            print("Finished creating " + name + "'s statuses dictionary! \nStatus count: " + str(len(statuses_dict.items())) + " statuses.")
+            print("Finished creating " + name + "'s statuses dictionary! \nStatus count: " +
+                  str(len(statuses_dict.items())) + " statuses.")
+
 
 if __name__ == '__main__':
     with open('fb_login_creds.yaml', 'r') as stream:
@@ -241,7 +269,7 @@ if __name__ == '__main__':
             my_email = y['email']
             my_profile_url = y['profile_url']
         except yaml.YAMLError as exc:
-            print(exc)
+            print("----------", exc)
 
     FBWS = FBWebScraper(
         my_email=my_email,
